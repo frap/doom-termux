@@ -1,7 +1,7 @@
 ;; * Modules
 (doom! :completion
-       (company +auto)
-       ivy
+       (company +childframe)
+       (ivy +prescient +icons +childframe)
 
        :ui
        (popup +all +defaults)
@@ -40,10 +40,12 @@
        magit
 
        :lang
+       common-lisp
        clojure
        (org
         +dragndrop
-        +pomodoro)
+        +pomodoro
+        +roam2)
        org-private
        emacs-lisp
        markdown

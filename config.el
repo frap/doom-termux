@@ -167,9 +167,6 @@
 ;; *** company
 
 (after! company
-  ;; **** prescient
-  (use-package! company-prescient
-    :hook (company-mode . company-prescient-mode))
   ;; **** company-ui
   (setq company-tooltip-limit 10
         company-tooltip-minimum-width 80

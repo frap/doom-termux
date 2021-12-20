@@ -1,6 +1,7 @@
 ;;; lang/org-private/config.el -*- lexical-binding: t; -*-
 
 (after! org
+  (setq org-roam-directory "~/org/roam")
   (add-hook 'org-metareturn-hook '+org/insert-go-eol)
   (add-hook 'org-ctrl-c-ctrl-c-hook '+org-private/*org-ctrl-c-ctrl-c-counsel-org-tag)
   (add-hook 'org-mode-hook (lambda () (add-hook 'before-save-hook '+org-private/org-add-ids-to-headlines-in-file nil 'local)))

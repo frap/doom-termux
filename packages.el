@@ -12,6 +12,7 @@
 
 
 ;; * Coding
+(package! magit-section)
 (package! ivy-yasnippet)
 (package! helpful)
 (package! deadgrep)
