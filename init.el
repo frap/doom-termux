@@ -6,6 +6,7 @@
        :ui
        (popup +all +defaults)
        vc-gutter
+       (ligatures +extra)
        doom
        doom-dashboard
        hl-todo

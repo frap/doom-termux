@@ -37,7 +37,7 @@
   (defun +dired|create-non-existent-directory ()
     (let ((parent-directory (file-name-directory buffer-file-name)))
       (when (and (not (file-exists-p parent-directory))
-                 (y-or-n-p (format "Directory `%s' does not exist! Create it?" parent-directory)))
+                 (y-or-n-p (format "Le répertoire `%s' n'existe pas! Le créer?" parent-directory)))
         (make-directory parent-directory t))))
   (push #'+dired|create-non-existent-directory find-file-not-found-functions)
 
@@ -58,7 +58,8 @@
   :after dired
   :when (not IS-WINDOWS)
   :config
-  (dired-quick-sort-setup))
+  ;;(dired-quick-sort-setup)
+  )
 
 (use-package! dired-filter
   :after dired)

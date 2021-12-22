@@ -2,13 +2,14 @@
 ;;; packages.el
 
 ;; * Disable
+(package! evil-escape :disable t)
 (package! dired-k :disable t)
 (package! flycheck-popup-tip :disable t)
 (package! flycheck-pos-tip :disable t)
 (package! ob-mongo :disable t)
 (package! ob-sql-mode :disable t)
 (package! ob-translate :disable t)
-(package! xclip :disable t)
+;;(package! xclip :disable t)
 
 
 ;; * Coding

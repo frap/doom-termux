@@ -1,7 +1,14 @@
 ;;; lang/org-private/config.el -*- lexical-binding: t; -*-
 
+(setq org-directory "~/org/")
+
+;; problematic modes that stop org-kook
+(defadvice! shut-up-org-problematic-hooks (orig-fn &rest args)
+  :around #'org-fancy-priorities-mode
+  :around #'org-superstar-mode
+  (ignore-errors (apply orig-fn args)))
+
 (after! org
-  (setq org-roam-directory "~/org/roam")
   (add-hook 'org-metareturn-hook '+org/insert-go-eol)
   (add-hook 'org-ctrl-c-ctrl-c-hook '+org-private/*org-ctrl-c-ctrl-c-counsel-org-tag)
   (add-hook 'org-mode-hook (lambda () (add-hook 'before-save-hook '+org-private/org-add-ids-to-headlines-in-file nil 'local)))
@@ -14,6 +21,20 @@
   (advice-add 'org-shiftcontroldown :override #'*org/shiftcontroldown)
 ;; * UI
   (defface org-closed-custom-braket '((t (:inherit 'default))) "org-close" :group 'org)
+  (setq-default org-tag-alist (quote (("@errand"     . ?e)
+                                    ("@bureau"    . ?o)
+                                    ("@maison"    . ?h)
+                                    ("important"  . ?i)
+                                    ("urgent"     . ?u)
+
+                                    (:newline)
+                                    ("ATTENDRE"  . ?w)
+                                    ("SUSPENDUÉ" . ?h)
+                                    ("ANNULÉ"    . ?c)
+                                    ("RÉUNION"   . ?m)
+                                    ("TÉLÉPHONE" . ?p)
+                                    ("french"    . ?f)
+                                    ("spanish"   . ?s))))
   (setq org-adapt-indentation nil
         org-M-RET-may-split-line '((default . nil))
         org-export-use-babel nil
@@ -26,7 +47,7 @@
         org-cycle-separator-lines 1
         org-enforce-todo-dependencies t
         org-bullets-bullet-list '("◉")
-        org-ellipsis " >"
+        org-ellipsis " ▾ "
         org-fontify-done-headline t
         org-fontify-quote-and-verse-blocks t
         org-fontify-whole-heading-line t
@@ -58,6 +79,7 @@
         org-outline-path-complete-in-steps nil
         org-pretty-entities nil
         org-pretty-entities-include-sub-superscripts t
+        org-fancy-priorities-list '("⚡" "⬆" "⬇" "☕")
         ;; org-priority-faces
         ;; `((?A . ,(face-foreground 'error))
         ;;   (?B . ,(face-foreground 'warning))
@@ -70,15 +92,47 @@
         org-startup-indented t
         org-startup-with-inline-images nil
         org-tags-column 0
-        org-todo-keyword-faces
-        '(("TODO" . org-todo-keyword-todo)
-          ("WANT" . org-todo-keyword-want)
-          ("DONE" . org-todo-keyword-done)
-          ("WAIT" . org-todo-keyword-wait)
-          ("KILL" . org-todo-keyword-kill)
-          ("OUTD" . org-todo-keyword-outd))
-        org-todo-keywords
-        '((sequence "TODO(t!)" "WAIT(w@/@)" "WANT(h!/@)" "|" "DONE(d!/@)" "OUTD(o@/@)" "KILL(k@/@)"))
+         ;; HACK Face specs fed directly to `org-todo-keyword-faces' don't respect
+        ;;      underlying faces like the `org-todo' face does, so we define our own
+        ;;      intermediary faces that extend from org-todo.
+        ;; (with-no-warnings
+        ;;   (custom-declare-face '+org-todo-active  '((t (:inherit (bold font-lock-constant-face org-todo)))) "")
+        ;;   (custom-declare-face '+org-todo-project '((t (:inherit (bold font-lock-doc-face org-todo)))) "")
+        ;;   (custom-declare-face '+org-todo-onhold  '((t (:inherit (bold warning org-todo)))) "")
+        ;;   (custom-declare-face '+org-todo-cancel  '((t (:inherit (bold error org-todo)))) "")
+		 org-todo-keyword-faces
+         '(("[ ]"   . +org-todo-keyword-todo)
+           ("[-]"   . +org-todo-keyword-want)
+           ("SUIV" . +org-todo-keyword-want)
+           ("[?]"  . +org-todo-keyword-wait)
+           ("ATTE" . +org-todo-keyword-wait)
+           ("FINI" . +org-todo-keyword-done)
+           ("SUSP" . +org-todo-keyword-wait)
+           ("PROJ" . +org-todo-keyword-todo)
+           ("NO"   . +org-todo-keyword-kill)
+           ("KILL" . +org-todo-keyword-kill))
+
+		org-todo-keywords
+        '((sequence
+           "TODO(t)"  ; A task that needs doing & is ready to do
+           "PROJ(p)"  ; A project, which usually contains other tasks
+           "SUIV(s)"  ; A task that is in progress
+           "ATTE(w)"  ; Something external is holding up this task
+           "SUSP(h)"  ; This task is paused/on hold because of me
+           "|"
+           "FINI(d)"  ; Task successfully completed
+           "KILL(k)") ; Task was cancelled, aborted or is no longer applicable
+          (sequence
+           "[ ](T)"   ; A task that needs doing
+           "[-](S)"   ; Task is in progress
+           "[?](W)"   ; Task is being held up or paused
+           "|"
+           "[X](D)")  ; Task was completed
+          (sequence
+           "|"
+           "OKAY(o)"
+           "YES(y)"
+           "NO(n)"))
         org-treat-insert-todo-heading-as-state-change t
         org-use-fast-tag-selection nil
         org-use-fast-todo-selection t
@@ -101,7 +155,90 @@
   (defface org-todo-keyword-outd '((t ())) "org-outd" :group 'org)
   (defface org-todo-keyword-wait '((t ())) "org-wait" :group 'org)
   (defface org-todo-keyword-todo '((t ())) "org-todo" :group 'org)
-  (defface org-todo-keyword-kill '((t ())) "org-kill" :group 'org))
+  (defface org-todo-keyword-kill '((t ())) "org-kill" :group 'org)
+  (appendq! +ligatures-extra-symbols
+          `(:checkbox      "☐"
+            :pending       "◼"
+            :checkedbox    "☑"
+            :list_property "∷"
+            :em_dash       "—"
+            :ellipses      "…"
+            :arrow_right   "→"
+            :arrow_left    "←"
+            :title         "𝙏"
+            :subtitle      "𝙩"
+            :author        "𝘼"
+            :date          "𝘿"
+            :property      "☸"
+            :options       "⌥"
+            :startup       "⏻"
+            :macro         "𝓜"
+            :html_head     "🅷"
+            :html          "🅗"
+            :latex_class   "🄻"
+            :latex_header  "🅻"
+            :beamer_header "🅑"
+            :latex         "🅛"
+            :attr_latex    "🄛"
+            :attr_html     "🄗"
+            :attr_org      "⒪"
+            :begin_quote   "❝"
+            :end_quote     "❞"
+            :caption       "☰"
+            :header        "›"
+            :results       "🠶"
+            :begin_export  "⏩"
+            :end_export    "⏪"
+            :properties    "⚙"
+            :end           "∎"
+            :priority_a   ,(propertize "⚑" 'face 'all-the-icons-red)
+            :priority_b   ,(propertize "⬆" 'face 'all-the-icons-orange)
+            :priority_c   ,(propertize "■" 'face 'all-the-icons-yellow)
+            :priority_d   ,(propertize "⬇" 'face 'all-the-icons-green)
+            :priority_e   ,(propertize "❓" 'face 'all-the-icons-blue)))
+(set-ligatures! 'org-mode
+  :merge t
+  :checkbox      "[ ]"
+  :pending       "[-]"
+  :checkedbox    "[X]"
+  :list_property "::"
+  :em_dash       "---"
+  :ellipsis      "..."
+  :arrow_right   "->"
+  :arrow_left    "<-"
+  :title         "#+title:"
+  :subtitle      "#+subtitle:"
+  :author        "#+author:"
+  :date          "#+date:"
+  :property      "#+property:"
+  :options       "#+options:"
+  :startup       "#+startup:"
+  :macro         "#+macro:"
+  :html_head     "#+html_head:"
+  :html          "#+html:"
+  :latex_class   "#+latex_class:"
+  :latex_header  "#+latex_header:"
+  :beamer_header "#+beamer_header:"
+  :latex         "#+latex:"
+  :attr_latex    "#+attr_latex:"
+  :attr_html     "#+attr_html:"
+  :attr_org      "#+attr_org:"
+  :begin_quote   "#+begin_quote"
+  :end_quote     "#+end_quote"
+  :caption       "#+caption:"
+  :header        "#+header:"
+  :begin_export  "#+begin_export"
+  :end_export    "#+end_export"
+  :results       "#+RESULTS:"
+  :property      ":PROPERTIES:"
+  :property      ":properties:"
+  :end           ":END:"
+  :priority_a    "[#A]"
+  :priority_b    "[#B]"
+  :priority_c    "[#C]"
+  :priority_d    "[#D]"
+  :priority_e    "[#E]")
+(plist-put +ligatures-extra-symbols :name "⁍"))
 
 ;; * Agenda
 (after! org-agenda
@@ -143,20 +280,20 @@ _;_ tag      _h_ headline      _c_ category     _r_ regexp     _d_ remove    "
   (setq org-super-agenda-groups
         '((:name "Log\n"
                  :log t)  ; Automatically named "Log"
-          (:name "Schedule\n"
+          (:name "Programme\n"
                  :time-grid t)
-          (:name "Today\n"
+          (:name "Aujourd'hui\n"
                  :scheduled today)
-          (:name "Due today\n"
+          (:name "Dû aujourd'hui\n"
                  :deadline today)
-          (:name "Overdue\n"
+          (:name "en retard\n"
                  :deadline past)
-          (:name "Due soon\n"
+          (:name "à bientôt\n"
                  :deadline future)
           (:name "Waiting\n"
-                 :todo "WAIT"
+                 :todo "ATTE"
                  :order 98)
-          (:name "Scheduled earlier\n"
+          (:name "Prévu plus tôt\n"
                  :scheduled past))))
 
 ;; * Export
@@ -229,9 +366,9 @@ _;_ tag      _h_ headline      _c_ category     _r_ regexp     _d_ remove    "
   (add-hook 'org-capture-prepare-finalize-hook #'counsel-org-tag)
   ;; (if (featurep! calendar)
   ;;     (add-hook 'org-capture-after-finalize-hook #'org-gcal-sync))
-  (setq org-default-notes-file "inbox.org"
-        +org-capture-todo-file "inbox.org"
-        +org-capture-notes-file "inbox.org"
+  (setq org-default-notes-file "todo.org"
+        +org-capture-todo-file "todo.org"
+        +org-capture-notes-file "todo.org"
         org-capture-templates
         `(("GSA" "General Skim Annotation" entry
            (file+function (lambda () (buffer-file-name)) +org-move-point-to-heading)
@@ -254,16 +391,16 @@ _;_ tag      _h_ headline      _c_ category     _r_ regexp     _d_ remove    "
 :END:
 %i
 %?")
-          ("t" "Todo" entry
-           (file ,(concat org-directory "inbox.org"))
+          ("t" "Tâche" entry
+           (file ,(concat org-directory "todo.org"))
            "* %^{Logging for...}
 :PROPERTIES:
 :Created: %U
 :END:
 %i
 %?")
-          ("tl" "Todo with link" entry
-           (file ,(concat org-directory "inbox.org"))
+          ("tl" "Tâche avec lien" entry
+           (file ,(concat org-directory "todo.org"))
            "* %^{Logging for...}
 :PROPERTIES:
 :Created: %U
@@ -271,7 +408,7 @@ _;_ tag      _h_ headline      _c_ category     _r_ regexp     _d_ remove    "
 :END:
 %i
 %?")
-          ("ic" "Idea from Chrome" entry
+          ("ic" "Idée de Chrome" entry
            (file ,(concat org-directory "idea.org"))
            "* %^{Logging for...} :idea:
 :PROPERTIES:
@@ -289,13 +426,13 @@ _;_ tag      _h_ headline      _c_ category     _r_ regexp     _d_ remove    "
 :END:
 %i
 %?" :clock-in t)
-          ("M" "Meeting" entry
+          ("M" "Réunions" entry
            (file+olp+datetree ,(concat org-directory "meeting.org"))
            "* %^{Logging for...} :logs:communication:
 %^{Effort}p
 %i
 %?" :clock-in t)
-          ("m" "Meeting Minutes" entry
+          ("m" "comptes rendus des réunions" entry
            #'+org-move-point-to-heading
            "* %^{Logging for...} :logs:
 :PROPERTIES:
@@ -313,7 +450,7 @@ _;_ tag      _h_ headline      _c_ category     _r_ regexp     _d_ remove    "
 :END:
 %i
 %?" :clock-in t)
-          ("i" "Idea" entry
+          ("i" "Idée" entry
            (file ,(concat org-directory "idea.org"))
            "* %A :idea:
 :PROPERTIES:
@@ -322,30 +459,30 @@ _;_ tag      _h_ headline      _c_ category     _r_ regexp     _d_ remove    "
 :END:
 %i
 %?")
-          ("drl" "Daily Review with link" entry
-           (file+olp+datetree ,(concat org-directory "review.org"))
+          ("drl" "Revue quotidienne avec lien" entry
+           (file+olp+datetree ,(concat org-directory "revue.org"))
            "* %^{Review} :review:daily:
 :PROPERTIES:
 :Created: %U
 :Linked: %a
 :END:
 %?" :time-prompt t)
-          ("dr" "Daily Review" entry
-           (file+olp+datetree ,(concat org-directory "review.org"))
+          ("dr" "Revue quotidienne" entry
+           (file+olp+datetree ,(concat org-directory "revue.org"))
            "* %^{Review} :review:daily:
 :PROPERTIES:
 :Created: %U
 :END:
 %?" :time-prompt t)
-          ("wr" "Week Review" entry
-           (file+olp+datetree ,(concat org-directory "review.org"))
+          ("wr" "Revue de la semaine" entry
+           (file+olp+datetree ,(concat org-directory "revue.org"))
            "* %^{Review for...|Mood|Research|Learn|Entertainment|Life} :review:week:%\\1:
 :PROPERTIES:
 :Created: %U
 :END:
 %?" :time-prompt t)
-          ("mr" "Month Review" entry
-           (file+olp+datetree ,(concat org-directory "review.org"))
+          ("mr" "Revue du mois" entry
+           (file+olp+datetree ,(concat org-directory "revue.org"))
            "* %^{Review for...|Mood|Research|Learn|Entertainment|Life} :review:month:%\\1:
 :PROPERTIES:
 :Created: %U
@@ -446,3 +583,96 @@ If run interactively, get ENTRY from context."
      :n "{" #'org-brain-visualize-add-grandparent
      :n "}" #'org-brain-visualize-remove-grandparent
      )))
+
+(use-package! org-agenda
+              :init
+              (map! "<f1>" #'gas/switch-to-agenda)
+                                        ;  (setq org-agenda-block-separator nil
+                                        ;        org-agenda-start-with-log-mode t)
+              (defun gas/switch-to-agenda ()
+                (interactive)
+                (org-agenda nil " "))
+              :config
+                                        ;  (setq org-columns-default-format "%40ITEM(Task) %Effort(EE){:} %CLOCKSUM(Time Spent) %SCHEDULED(Scheduled) %DEADLINE(Deadline)" )
+              (setq org-agenda-custom-commands
+                    (quote (
+                            ("N" "Notes" tags "NOTE"
+                             ((org-agenda-overriding-header "Notes")
+                              (org-tags-match-list-sublevels t)))
+                            ("h" "Habitudes" tags-todo "STYLE=\"habit\""
+                             ((org-agenda-overriding-header "Habitudes")
+                              (org-agenda-sorting-strategy
+                               '(todo-state-down priority-down category-keep))))
+                            ("e" "Eisenhower Matrix"
+                             ((agenda ""
+                                      ((org-agenda-overriding-header "Calendrier Eisenhower:")
+                                       (org-agenda-show-log t)
+                                       (org-agenda-log-mode-items '(clock state))
+                                       (org-agenda-category-filter-preset '("-Habitudes"))
+                                       (org-agenda-span 5)
+                                       (org-agenda-start-on-weekday t)
+                                       ;;            (org-agenda-ndays 5)
+                                       ;;            (org-agenda-start-day "-2d")
+                                       (org-deadline-warning-days 30)))
+                              (tags-todo  "+important+urgent\!FINI"
+                                          ((org-agenda-overriding-header "Tâches importantes et urgentes")
+                                           (org-tags-match-list-sublevels nil)))
+                              (tags-todo  "+important-urgent"
+                                          ((org-agenda-overriding-header "Tâches importantes mais non urgentes")
+                                           (org-tags-match-list-sublevels nil)))
+                              (tags-todo "-important+urgent"
+                                         ((org-agenda-overriding-header "Tâches urgentes mais sans importance")
+                                          (org-tags-match-list-sublevels nil)))
+                              (tags-todo "-important-urgent/!TODO"
+                                         ((org-agenda-overriding-header "Tâches non importantes ni urgentes")
+                                          (org-agenda-category-filter-preset '("-Habitudes"))
+                                          (org-tags-match-list-sublevels nil)))
+                              (tags-todo "VALUE"
+                                         ((org-agenda-overriding-header "Valeurs")
+                                          (org-tags-match-list-sublevels nil)))
+                              ))
+                            (" " "Agenda"
+                             ((agenda ""
+                                      ((org-agenda-overriding-header "Calendrier d'aujourd'hui:")
+                                       (org-agenda-show-log t)
+                                       (org-agenda-log-mode-items '(clock state))
+                                       ;;   (org-agenda-span 'day)
+                                       ;;   (org-agenda-ndays 3)
+                                       (org-agenda-start-on-weekday nil)
+                                       (org-agenda-start-day "-d")
+                                       (org-agenda-todo-ignore-deadlines nil)))
+                              (tags-todo "+important"
+                                         ((org-agenda-overriding-header "Tâches Importantes à Venir")
+                                          (org-tags-match-list-sublevels nil)))
+                              (tags-todo "-important"
+                                         ((org-agenda-overriding-header "Tâches de Travail")
+                                          (org-agenda-category-filter-preset '("-Habitudes"))
+                                          (org-agenda-sorting-strategy
+                                           '(todo-state-down priority-down))))
+                              (tags "REFILE"
+                                    ((org-agenda-overriding-header "Tâches à la Représenter")
+                                     (org-tags-match-list-sublevels nil))))))))
+)
+
+(use-package! org-roam
+  :after org
+  :init
+ ;; (setq org-roam-v2-ack t) ;; acknowledge v2 upgrade
+  :custom
+  (org-roam-completion-everywhere t)
+  (setq org-roam-directory "~/org/roam")
+  :config
+    ;; Let's set up some org-roam capture templates
+   (setq org-roam-capture-templates
+         '(("d" "default" plain  "%?"
+            :if-new (file+head "${slug}.org"
+                       "#+title: ${title}\n#+date: %u\n#+lastmod: \n\n")
+            :immediate-finish t))
+         time-stamp-start "#\\+lastmod: [\t]*")
+
+  ;; And now we set necessary variables for org-roam-dailies
+  (setq org-roam-dailies-capture-templates
+        '(("d" "default" entry     "* %?"
+           :if-new (file+head "%<%Y-%m-%d>.org"
+                     "#+title: %<%Y-%m-%d>\n\n"))))
+  )
